@@ -17,18 +17,39 @@ app.get("/", (req, res) => {
   res.send("Servidor chat activo 🚀");
 });
 
-// Cuando alguien se conecta
 io.on("connection", (socket) => {
 
-  // El usuario se identifica con su ID
+  console.log("Usuario conectado:", socket.id);
+
+  // Unirse a sala privada
   socket.on("join", (userId) => {
     socket.join("user_" + userId);
+    console.log("Usuario unido a sala:", userId);
   });
 
-  // Cuando PHP le diga que hay nuevo mensaje
+  // Recibir nuevo mensaje
   socket.on("nuevo_mensaje", (data) => {
-    // Enviar SOLO al receptor
-    io.to("user_" + data.receiver_id).emit("mensaje_recibido", data);
+
+    /*
+      data debe venir así:
+      {
+        chat: 5,
+        sender: 1,
+        receiver: 2,
+        text: "hola"
+      }
+    */
+
+    // Enviar al receptor
+    io.to("user_" + data.receiver).emit("mensaje_recibido", data);
+
+    // Enviar también al emisor (confirmación)
+    io.to("user_" + data.sender).emit("mensaje_recibido", data);
+
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Usuario desconectado:", socket.id);
   });
 
 });
