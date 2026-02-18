@@ -14,19 +14,23 @@ const io = socketIo(server, {
 const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
-  res.send("Servidor de chat funcionando 🚀");
+  res.send("Servidor chat activo 🚀");
 });
 
+// Cuando alguien se conecta
 io.on("connection", (socket) => {
-  console.log("Usuario conectado");
 
-  socket.on("mensaje", (data) => {
-    io.emit("mensaje", data);
+  // El usuario se identifica con su ID
+  socket.on("join", (userId) => {
+    socket.join("user_" + userId);
   });
 
-  socket.on("disconnect", () => {
-    console.log("Usuario desconectado");
+  // Cuando PHP le diga que hay nuevo mensaje
+  socket.on("nuevo_mensaje", (data) => {
+    // Enviar SOLO al receptor
+    io.to("user_" + data.receiver_id).emit("mensaje_recibido", data);
   });
+
 });
 
 server.listen(PORT, () => {
