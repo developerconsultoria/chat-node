@@ -29,24 +29,24 @@ io.on("connection", (socket) => {
 
   // Mensaje privado
   socket.on("privateMessage", (data) => {
-    // Emitir al receptor
     const socketTo = users[data.to];
+    const socketFrom = users[data.from];
+
+    // Emitir al receptor
     if (socketTo) {
       io.to(socketTo).emit("receiveMessage", {
         chat_id: data.chat_id,
-        from: data.from, // 🔥 IMPORTANTE
+        from: data.from,
         from_name: data.from_name,
         message: data.message,
       });
     }
 
-    // Emitir al emisor (para confirmación)
     // Emitir al emisor (confirmación correcta)
-    const socketFrom = users[data.from];
     if (socketFrom) {
       io.to(socketFrom).emit("receiveMessage", {
         chat_id: data.chat_id,
-        from: data.from, // 🔥 IMPORTANTE
+        from: data.from, // 🔥 CLAVE
         from_name: data.from_name,
         message: data.message,
       });
