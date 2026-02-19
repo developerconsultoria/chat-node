@@ -6,12 +6,13 @@ const app = express();
 const server = http.createServer(app);
 
 const io = socketIo(server, {
-  cors: {
-    origin: "*"
-  }
+  cors: { origin: "*" }
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Guardar usuarios conectados { userId: socketId }
+let users = {};
 
 app.get("/", (req, res) => {
   res.send("Servidor chat activo 🚀");
@@ -21,37 +22,52 @@ io.on("connection", (socket) => {
 
   console.log("Usuario conectado:", socket.id);
 
-  // Unirse a sala privada
-  socket.on("join", (userId) => {
-    socket.join("user_" + userId);
-    console.log("Usuario unido a sala:", userId);
+  // Registro de usuario
+  socket.on("register", ({ userId }) => {
+    users[userId] = socket.id;
+    console.log(`Usuario ${userId} registrado con socket ${socket.id}`);
   });
 
-  // Recibir nuevo mensaje
-  socket.on("nuevo_mensaje", (data) => {
-
+  // Mensaje privado
+  socket.on("privateMessage", (data) => {
     /*
       data debe venir así:
       {
-        chat: 5,
-        sender: 1,
-        receiver: 2,
-        text: "hola"
+        chat_id: 5,
+        from: 1,
+        to: 2,
+        message: "hola"
       }
     */
 
-    // Enviar al receptor
-    io.to("user_" + data.receiver).emit("mensaje_recibido", data);
+    // Emitir al receptor
+    const socketTo = users[data.to];
+    if (socketTo) {
+      io.to(socketTo).emit("receiveMessage", {
+        chat_id: data.chat_id,
+        from_name: "Otro Usuario", // si quieres, puedes pasar nombre real desde JS
+        message: data.message
+      });
+    }
 
-    // Enviar también al emisor (confirmación)
-    io.to("user_" + data.sender).emit("mensaje_recibido", data);
-
+    // Emitir al emisor (para confirmación)
+    const socketFrom = users[data.from];
+    if (socketFrom) {
+      io.to(socketFrom).emit("receiveMessage", {
+        chat_id: data.chat_id,
+        from_name: "Tú",
+        message: data.message
+      });
+    }
   });
 
   socket.on("disconnect", () => {
     console.log("Usuario desconectado:", socket.id);
+    // Limpiar usuario desconectado
+    for (let uid in users) {
+      if (users[uid] === socket.id) delete users[uid];
+    }
   });
-
 });
 
 server.listen(PORT, () => {
