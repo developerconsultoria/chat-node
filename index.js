@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = socketIo(server, {
-  cors: { origin: "*" }
+  cors: { origin: "*" },
 });
 
 const PORT = process.env.PORT || 3000;
@@ -19,7 +19,6 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-
   console.log("Usuario conectado:", socket.id);
 
   // Registro de usuario
@@ -30,33 +29,26 @@ io.on("connection", (socket) => {
 
   // Mensaje privado
   socket.on("privateMessage", (data) => {
-    /*
-      data debe venir así:
-      {
-        chat_id: 5,
-        from: 1,
-        to: 2,
-        message: "hola"
-      }
-    */
-
     // Emitir al receptor
     const socketTo = users[data.to];
     if (socketTo) {
       io.to(socketTo).emit("receiveMessage", {
         chat_id: data.chat_id,
-        from_name: "Otro Usuario", // si quieres, puedes pasar nombre real desde JS
-        message: data.message
+        from: data.from, // 🔥 IMPORTANTE
+        from_name: data.from_name,
+        message: data.message,
       });
     }
 
     // Emitir al emisor (para confirmación)
+    // Emitir al emisor (confirmación correcta)
     const socketFrom = users[data.from];
     if (socketFrom) {
       io.to(socketFrom).emit("receiveMessage", {
         chat_id: data.chat_id,
-        from_name: "Tú",
-        message: data.message
+        from: data.from, // 🔥 IMPORTANTE
+        from_name: data.from_name,
+        message: data.message,
       });
     }
   });
