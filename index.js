@@ -19,16 +19,28 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
+
   console.log("Usuario conectado:", socket.id);
 
-  // Registro de usuario
+  // =========================
+  // REGISTRAR USUARIO
+  // =========================
   socket.on("register", ({ userId }) => {
+
     users[userId] = socket.id;
+
     console.log(`Usuario ${userId} registrado con socket ${socket.id}`);
+
+    // 🔥 Notificar a TODOS que este usuario está online
+    io.emit("userOnline", { userId });
   });
 
-  // Mensaje privado
+
+  // =========================
+  // MENSAJE PRIVADO
+  // =========================
   socket.on("privateMessage", (data) => {
+
     const socketTo = users[data.to];
     const socketFrom = users[data.from];
 
@@ -46,20 +58,34 @@ io.on("connection", (socket) => {
     if (socketFrom) {
       io.to(socketFrom).emit("receiveMessage", {
         chat_id: data.chat_id,
-        from: data.from, // 🔥 CLAVE
+        from: data.from,
         from_name: data.from_name,
         message: data.message,
       });
     }
   });
 
+
+  // =========================
+  // DESCONECTAR USUARIO
+  // =========================
   socket.on("disconnect", () => {
+
     console.log("Usuario desconectado:", socket.id);
-    // Limpiar usuario desconectado
+
     for (let uid in users) {
-      if (users[uid] === socket.id) delete users[uid];
+      if (users[uid] === socket.id) {
+
+        delete users[uid];
+
+        // 🔥 Notificar que está offline
+        io.emit("userOffline", { userId: uid });
+
+        break;
+      }
     }
   });
+
 });
 
 server.listen(PORT, () => {
