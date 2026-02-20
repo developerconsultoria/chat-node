@@ -19,20 +19,25 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
+
   console.log("Usuario conectado:", socket.id);
 
-  // Registro de usuario
   socket.on("register", ({ userId }) => {
+
     users[userId] = socket.id;
-    console.log(`Usuario ${userId} registrado con socket ${socket.id}`);
+
+    console.log(`Usuario ${userId} registrado`);
+
+    // 🔥 Notificar que este usuario está online
+    io.emit("userOnline", { userId });
+
   });
 
-  // Mensaje privado
   socket.on("privateMessage", (data) => {
+
     const socketTo = users[data.to];
     const socketFrom = users[data.from];
 
-    // Emitir al receptor
     if (socketTo) {
       io.to(socketTo).emit("receiveMessage", {
         chat_id: data.chat_id,
@@ -42,16 +47,32 @@ io.on("connection", (socket) => {
       });
     }
 
-    // Emitir al emisor (confirmación correcta)
     if (socketFrom) {
       io.to(socketFrom).emit("receiveMessage", {
         chat_id: data.chat_id,
-        from: data.from, // 🔥 CLAVE
+        from: data.from,
         from_name: data.from_name,
         message: data.message,
       });
     }
   });
+
+  socket.on("disconnect", () => {
+
+    console.log("Usuario desconectado:", socket.id);
+
+    // 🔥 Buscar qué usuario se desconectó
+    for (let uid in users) {
+      if (users[uid] === socket.id) {
+        delete users[uid];
+
+        // 🔥 Notificar que está offline
+        io.emit("userOffline", { userId: uid });
+      }
+    }
+  });
+
+});
 
   socket.on("disconnect", () => {
     console.log("Usuario desconectado:", socket.id);
