@@ -11,7 +11,8 @@ const io = socketIo(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// Guardar usuarios conectados { userId: socketId }
+// 🔥 AHORA SOPORTA MULTIPLES CONEXIONES POR USUARIO
+// { userId: [socketId, socketId] }
 let users = {};
 
 app.get("/", (req, res) => {
@@ -27,12 +28,16 @@ io.on("connection", (socket) => {
   // =========================
   socket.on("register", ({ userId }) => {
 
-    users[userId] = socket.id;
+    if (!users[userId]) {
+      users[userId] = [];
+    }
 
-    console.log(`Usuario ${userId} registrado con socket ${socket.id}`);
+    users[userId].push(socket.id);
 
-    // 🔥 Notificar a TODOS que este usuario está online
-    io.emit("userOnline", { userId });
+    console.log("Usuarios activos:", users);
+
+    // 🔥 Enviar lista completa de usuarios online
+    io.emit("users_online", Object.keys(users));
   });
 
 
@@ -41,28 +46,40 @@ io.on("connection", (socket) => {
   // =========================
   socket.on("privateMessage", (data) => {
 
-    const socketTo = users[data.to];
-    const socketFrom = users[data.from];
+    /*
+      data = {
+        chat_id,
+        from,
+        from_name,
+        to,
+        message
+      }
+    */
 
-    // Emitir al receptor
-    if (socketTo) {
-      io.to(socketTo).emit("receiveMessage", {
+    // 🔥 ENVIAR AL RECEPTOR (TODAS SUS PESTAÑAS)
+    const socketsTo = users[data.to] || [];
+
+    socketsTo.forEach(sid => {
+      io.to(sid).emit("receiveMessage", {
         chat_id: data.chat_id,
         from: data.from,
         from_name: data.from_name,
         message: data.message,
       });
-    }
+    });
 
-    // Emitir al emisor (confirmación correcta)
-    if (socketFrom) {
-      io.to(socketFrom).emit("receiveMessage", {
+    // 🔥 ENVIAR AL EMISOR (TODAS SUS PESTAÑAS)
+    const socketsFrom = users[data.from] || [];
+
+    socketsFrom.forEach(sid => {
+      io.to(sid).emit("receiveMessage", {
         chat_id: data.chat_id,
         from: data.from,
         from_name: data.from_name,
         message: data.message,
       });
-    }
+    });
+
   });
 
 
@@ -73,17 +90,21 @@ io.on("connection", (socket) => {
 
     console.log("Usuario desconectado:", socket.id);
 
-    for (let uid in users) {
-      if (users[uid] === socket.id) {
+    for (let userId in users) {
 
-        delete users[uid];
+      // quitar solo este socket
+      users[userId] = users[userId].filter(id => id !== socket.id);
 
-        // 🔥 Notificar que está offline
-        io.emit("userOffline", { userId: uid });
-
-        break;
+      // si ya no tiene sockets → eliminar usuario
+      if (users[userId].length === 0) {
+        delete users[userId];
       }
     }
+
+    console.log("Usuarios activos:", users);
+
+    // 🔥 actualizar lista online
+    io.emit("users_online", Object.keys(users));
   });
 
 });
