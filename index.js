@@ -22,6 +22,18 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
 
   console.log("Usuario conectado:", socket.id);
+      //========================
+      // Validacion  de lectura:
+      //========================
+      socket.on("readMessages", (data) => {
+        const socketTo = users[data.to];
+    
+        if (socketTo) {
+          io.to(socketTo).emit("messagesRead", {
+            chat_id: data.chat_id,
+          });
+        }
+      });
        // =========================
        // Escribiendo
        //==========================
