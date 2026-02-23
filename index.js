@@ -23,7 +23,23 @@ io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
   // =========================
-  // ESCRIBIENDO (FIX)
+  // REGISTRAR USUARIO
+  // =========================
+  socket.on("register", ({ userId }) => {
+
+    if (!users[userId]) {
+      users[userId] = [];
+    }
+
+    users[userId].push(socket.id);
+
+    console.log("Usuarios activos:", users);
+
+    io.emit("users_online", Object.keys(users));
+  });
+
+  // =========================
+  // ESCRIBIENDO
   // =========================
   socket.on("typing", (data) => {
 
@@ -38,7 +54,7 @@ io.on("connection", (socket) => {
   });
 
   // =========================
-  // MENSAJE LEIDO
+  // MENSAJE LEÍDO
   // =========================
   socket.on("messageRead", (data) => {
 
@@ -51,22 +67,6 @@ io.on("connection", (socket) => {
       });
     });
 
-  });
-
-  // =========================
-  // REGISTRAR USUARIO
-  // =========================
-  socket.on("register", ({ userId }) => {
-
-    if (!users[userId]) {
-      users[userId] = [];
-    }
-
-    users[userId].push(socket.id);
-
-    console.log("Usuarios activos:", users);
-
-    io.emit("users_online", Object.keys(users));
   });
 
   // =========================
@@ -106,7 +106,6 @@ io.on("connection", (socket) => {
     console.log("Usuario desconectado:", socket.id);
 
     for (let userId in users) {
-
       users[userId] = users[userId].filter(id => id !== socket.id);
 
       if (users[userId].length === 0) {
