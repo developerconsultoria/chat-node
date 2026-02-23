@@ -11,7 +11,6 @@ const io = socketIo(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// 🔥 AHORA SOPORTA MULTIPLES CONEXIONES POR USUARIO
 // { userId: [socketId, socketId] }
 let users = {};
 
@@ -20,24 +19,45 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
+
   console.log("Usuario conectado:", socket.id);
-  
+
   // =========================
-  // Escribiendo
-  //==========================
+  // ESCRIBIENDO (FIX)
+  // =========================
   socket.on("typing", (data) => {
-    const socketTo = users[data.to];
-    if (socketTo) {
-      // emitir el modo  escribiendo en modo  real
-      io.to(socketTo).emit("userTyping", {
+
+    const socketsTo = users[data.to] || [];
+
+    socketsTo.forEach((sid) => {
+      io.to(sid).emit("userTyping", {
         from: data.from,
       });
-    }
+    });
+
   });
+
+  // =========================
+  // MENSAJE LEIDO
+  // =========================
+  socket.on("messageRead", (data) => {
+
+    const socketsTo = users[data.other] || [];
+
+    socketsTo.forEach((sid) => {
+      io.to(sid).emit("messageRead", {
+        chat_id: data.chat_id,
+        reader: data.reader
+      });
+    });
+
+  });
+
   // =========================
   // REGISTRAR USUARIO
   // =========================
   socket.on("register", ({ userId }) => {
+
     if (!users[userId]) {
       users[userId] = [];
     }
@@ -46,7 +66,6 @@ io.on("connection", (socket) => {
 
     console.log("Usuarios activos:", users);
 
-    // 🔥 Enviar lista completa de usuarios online
     io.emit("users_online", Object.keys(users));
   });
 
@@ -54,17 +73,7 @@ io.on("connection", (socket) => {
   // MENSAJE PRIVADO
   // =========================
   socket.on("privateMessage", (data) => {
-    /*
-      data = {
-        chat_id,
-        from,
-        from_name,
-        to,
-        message
-      }
-    */
 
-    // 🔥 ENVIAR AL RECEPTOR (TODAS SUS PESTAÑAS)
     const socketsTo = users[data.to] || [];
 
     socketsTo.forEach((sid) => {
@@ -76,7 +85,6 @@ io.on("connection", (socket) => {
       });
     });
 
-    // 🔥 ENVIAR AL EMISOR (TODAS SUS PESTAÑAS)
     const socketsFrom = users[data.from] || [];
 
     socketsFrom.forEach((sid) => {
@@ -87,19 +95,20 @@ io.on("connection", (socket) => {
         message: data.message,
       });
     });
+
   });
 
   // =========================
-  // DESCONECTAR USUARIO
+  // DESCONECTAR
   // =========================
   socket.on("disconnect", () => {
+
     console.log("Usuario desconectado:", socket.id);
 
     for (let userId in users) {
-      // quitar solo este socket
-      users[userId] = users[userId].filter((id) => id !== socket.id);
 
-      // si ya no tiene sockets → eliminar usuario
+      users[userId] = users[userId].filter(id => id !== socket.id);
+
       if (users[userId].length === 0) {
         delete users[userId];
       }
@@ -107,9 +116,9 @@ io.on("connection", (socket) => {
 
     console.log("Usuarios activos:", users);
 
-    // 🔥 actualizar lista online
     io.emit("users_online", Object.keys(users));
   });
+
 });
 
 server.listen(PORT, () => {
