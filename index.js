@@ -22,7 +22,18 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
 
   console.log("Usuario conectado:", socket.id);
-
+       // =========================
+       // Escribiendo
+       //==========================
+        socket.on("typing", (data) => {
+          const socketTo = users[data.to];
+          if (socketTo) {
+            // emitir el modo  escribiendo en modo  real
+            io.to(socketTo).emit("userTyping", {
+              from: data.from
+            });
+          }
+        });
   // =========================
   // REGISTRAR USUARIO
   // =========================
